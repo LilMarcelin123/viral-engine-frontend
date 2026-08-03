@@ -183,12 +183,34 @@ const functions = {
       }
 
       case 'campaignAdmin': {
-        if (payload.action === 'create')
-          return { data: await post('/campaigns', {
-            ...payload,
-            numVideos: Number(payload.num_videos),
-            presupuesto: Number(payload.budget),
-          }) };
+        if (payload.action === 'create') {
+          // El wizard usa nombres en inglés/snake_case; el backend espera camelCase en español.
+          const fecha = (v) => (v && String(v).trim() ? v : null);
+          const campania = await post('/campaigns', {
+            nombre:         payload.name,
+            artistaCancion: payload.artist_name || null,
+            urlAudio:       payload.audio_url   || null,
+            fechaInicio:    fecha(payload.start_date),
+            fechaCierre:    fecha(payload.end_date),
+            titulo:         payload.title       || null,
+            descripcion:    payload.description || null,
+            pautas:         payload.guidelines  || null,
+            imagenUrl:      payload.cover_url   || null,
+            numVideos:      Number(payload.num_videos),
+            presupuesto:    Number(payload.budget),
+            clientId:       payload.client_id ? Number(payload.client_id) : null,
+            plataformas:    arr(payload.target_platforms).map(p => String(p).toUpperCase()),
+            materiales:     arr(payload.source_materials).map(m => ({
+                              tipo: String(m.type).toLowerCase() === 'file' ? 'ARCHIVO' : 'LINK',
+                              url:  m.url,
+                            })),
+          });
+          // El endpoint de alta no acepta editores; las asignaciones van aparte.
+          const campaignId = campania.campaign_id ?? campania.id;
+          for (const userId of arr(payload.editor_ids))
+            await post(`/campaigns/${campaignId}/assignments`, { userId: Number(userId) });
+          return { data: campania };
+        }
         if (payload.action === 'activate') return { data: await post(`/campaigns/${payload.campaign_id}/activate`) };
         if (payload.action === 'close')    return { data: await post(`/campaigns/${payload.campaign_id}/close`) };
         if (payload.action === 'cancel')   return { data: await post(`/campaigns/${payload.campaign_id}/cancel`) };
