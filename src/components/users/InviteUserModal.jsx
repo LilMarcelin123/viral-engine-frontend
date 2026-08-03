@@ -14,18 +14,20 @@ export default function InviteUserModal({ open, onClose, onInvited }) {
   const [role, setRole] = useState("editor");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
+  const [creado, setCreado] = useState(null);   // { email, role, password_temporal }
+  const [copiado, setCopiado] = useState(false);
 
   const handleSubmit = async () => {
     if (!email.trim()) return;
     setSending(true);
     setError("");
     try {
-      // Todos los invitados entran como "user"; solo Admin explícito entra como admin
-      await base44.users.inviteUser(email.trim(), role === "admin" ? "admin" : "user");
-      setEmail("");
-      setRole("editor");
+      // El rol elegido se manda tal cual: editor | cliente | admin
+      const r = await base44.users.inviteUser(email.trim(), role);
+      // No cerramos: sin esta contraseña el invitado no puede entrar
+      // (todavía no hay recuperación de contraseña).
+      setCreado(r);
       onInvited();
-      onClose();
     } catch (e) {
       setError(e.message || "Error al invitar usuario");
     } finally {
@@ -33,7 +35,53 @@ export default function InviteUserModal({ open, onClose, onInvited }) {
     }
   };
 
+  const cerrar = () => {
+    setEmail(""); setRole("editor"); setCreado(null); setCopiado(false); setError("");
+    onClose();
+  };
+
   if (!open) return null;
+
+  if (creado) return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={cerrar} />
+      <div className="relative z-10 bg-card border border-white/12 rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-white/8">
+          <h3 className="font-syne font-bold text-white text-[15px]">Usuario creado</h3>
+          <button onClick={cerrar} className="text-white/40 hover:text-white/80"><X className="w-4 h-4" /></button>
+        </div>
+        <div className="px-6 py-5 space-y-4">
+          <p className="text-[13px] text-white/70">
+            <span className="text-white/40">Cuenta:</span> {creado.email} · {creado.role}
+          </p>
+          <div>
+            <label className="text-[11px] text-white/40 tracking-[0.15em] uppercase block mb-2">Contraseña temporal</label>
+            <div className="flex gap-2">
+              <code className="flex-1 bg-white/5 border border-white/12 rounded-xl px-3 py-2.5 text-[14px] text-white font-mono break-all">
+                {creado.password_temporal}
+              </code>
+              <button
+                onClick={() => { navigator.clipboard?.writeText(creado.password_temporal); setCopiado(true); }}
+                className="px-3 rounded-xl border border-white/12 text-[12px] text-white/60 hover:text-white/90">
+                {copiado ? "Copiado" : "Copiar"}
+              </button>
+            </div>
+          </div>
+          <p className="text-[12px] text-amber-300/80 bg-amber-400/8 border border-amber-400/15 rounded-lg px-3 py-2">
+            Anótala y compártela ahora. No se puede volver a consultar, y todavía no hay
+            recuperación de contraseña: si se pierde, hay que reiniciarla en la base de datos.
+          </p>
+        </div>
+        <div className="px-6 py-4 border-t border-white/8">
+          <button onClick={cerrar}
+            className="w-full px-4 py-2 rounded-xl text-[13px] font-semibold text-black"
+            style={{ background: "linear-gradient(135deg, #3B6FD4 0%, #1F47A1 50%, #143A8C 100%)" }}>
+            Ya la guardé
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">

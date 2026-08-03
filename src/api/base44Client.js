@@ -428,7 +428,9 @@ const integrations = {
       if (!res.ok) throw new Error(data?.message || 'No se pudo subir el archivo');
       // el front espera la URL absoluta para mostrarla
       const url = data.url.startsWith('http') ? data.url : API + data.url;
-      return { data: { file_url: url, url } };
+      // OJO: a diferencia de functions.invoke(), UploadFile del SDK devuelve el
+      // objeto PLANO. Los componentes hacen `const { file_url } = await ...`.
+      return { file_url: url, url, name: data.name };
     }
   }
 };
@@ -439,7 +441,19 @@ const legal = {
   doc:     (tipo) => get('/legal/' + tipo),
 };
 
-const users = { inviteUser: (d) => post('/users/invite', d) };
+const users = {
+  // Se invoca como inviteUser(email, rol) o como inviteUser({ email, user_type }).
+  inviteUser: (emailOrObj, rol) => {
+    const d = typeof emailOrObj === 'string'
+      ? { email: emailOrObj, user_type: rol }
+      : { ...emailOrObj };
+    const tipo = String(d.user_type ?? d.role ?? 'EDITOR').toUpperCase();
+    // El catálogo solo acepta ADMIN | CLIENTE | EDITOR.
+    if (!['ADMIN', 'CLIENTE', 'EDITOR'].includes(tipo))
+      throw new Error(`Rol inválido: ${tipo}`);
+    return post('/users/invite', { email: d.email, nombre: d.nombre, user_type: tipo });
+  }
+};
 
 export const base44 = { entities, functions, auth, integrations, agents, users, legal };
 export default base44;
