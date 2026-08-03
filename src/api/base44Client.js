@@ -59,6 +59,16 @@ const normCampaign = (c) => {
     id: c.campaign_id ?? c.id,
     name: c.nombre,
     estado: est,
+    // datos descriptivos: la ficha los muestra con estos nombres
+    artist_name: c.artista_cancion,
+    audio_url: c.url_audio,
+    cover_url: c.imagen_url,
+    title: c.titulo,
+    description: c.descripcion,
+    guidelines: c.pautas_contenido,
+    start_date: c.fecha_inicio,
+    end_date: c.fecha_cierre,
+    client_id: c.client_id,
     // el front compara contra "active"/"closed"/"cancelled"
     status: { activa: 'active', cerrada: 'closed', completada: 'completed',
               cancelada: 'cancelled', draft: 'draft' }[est] || est,
