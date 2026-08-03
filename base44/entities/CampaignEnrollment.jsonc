@@ -1,0 +1,99 @@
+{
+  "name": "CampaignEnrollment",
+  "type": "object",
+  "properties": {
+    "campaign_id": {
+      "type": "string"
+    },
+    "editor_id": {
+      "type": "string",
+      "description": "ID del usuario editor"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "active",
+        "eligible",
+        "expelled",
+        "completed"
+      ],
+      "default": "active",
+      "description": "active=participando, eligible=10+ videos aprobados, expelled=5 strikes"
+    },
+    "strikes": {
+      "type": "number",
+      "default": 0
+    },
+    "approved_videos": {
+      "type": "number",
+      "default": 0
+    },
+    "total_views": {
+      "type": "number",
+      "default": 0,
+      "description": "Suma de vistas de sus videos aprobados en esta campa\u00f1a"
+    },
+    "missions_earned": {
+      "type": "number",
+      "default": 0,
+      "description": "Cantidad de misiones desbloqueadas"
+    },
+    "virtual_balance": {
+      "type": "number",
+      "default": 0,
+      "description": "Saldo virtual ganado en esta campa\u00f1a (MXN)"
+    },
+    "remanent_paid": {
+      "type": "number",
+      "default": 0,
+      "description": "Pago por remanente al cierre de campa\u00f1a"
+    }
+  },
+  "required": [
+    "campaign_id",
+    "editor_id"
+  ],
+  "rls": {
+    "create": {
+      "$or": [
+        {
+          "data.editor_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "read": {
+      "$or": [
+        {
+          "data.editor_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "data.editor_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

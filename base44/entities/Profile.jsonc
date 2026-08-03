@@ -1,0 +1,151 @@
+{
+  "name": "Profile",
+  "type": "object",
+  "properties": {
+    "username": {
+      "type": "string",
+      "description": "Handle del perfil sin @"
+    },
+    "platform": {
+      "type": "string",
+      "enum": [
+        "instagram",
+        "facebook",
+        "tiktok"
+      ],
+      "description": "Plataforma"
+    },
+    "full_name": {
+      "type": "string"
+    },
+    "bio": {
+      "type": "string"
+    },
+    "followers": {
+      "type": "number"
+    },
+    "following": {
+      "type": "number"
+    },
+    "posts_count": {
+      "type": "number"
+    },
+    "profile_pic_url": {
+      "type": "string"
+    },
+    "is_verified": {
+      "type": "boolean"
+    },
+    "category": {
+      "type": "string"
+    },
+    "avg_engagement_rate": {
+      "type": "number"
+    },
+    "avg_views": {
+      "type": "number"
+    },
+    "avg_likes": {
+      "type": "number"
+    },
+    "last_scraped": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "scrape_status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "scraping",
+        "done",
+        "error"
+      ],
+      "default": "pending"
+    },
+    "apify_run_id": {
+      "type": "string"
+    },
+    "error_message": {
+      "type": "string"
+    },
+    "daily_scrape": {
+      "type": "boolean",
+      "default": false,
+      "description": "Si true, se incluye en la rutina diaria de scraping"
+    },
+    "hashtag_filter": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Si tiene valores, solo se guardan videos cuyos hashtags o caption contengan alguno de estos t\u00e9rminos (sin #)"
+    },
+    "scrape_limit": {
+      "type": "number",
+      "default": 100,
+      "description": "M\u00e1ximo de posts a scrapear por corrida (menos posts = menos cr\u00e9ditos de Apify)"
+    },
+    "artist_id": {
+      "type": "string",
+      "description": "DEPRECADO: usar artist_ids. ID del artista al que pertenece esta cuenta"
+    },
+    "artist_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "IDs de los artistas a los que pertenece esta cuenta (una cuenta puede estar en varios artistas)"
+    }
+  },
+  "required": [
+    "username",
+    "platform"
+  ],
+  "rls": {
+    "create": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "read": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "data.artist_ids": {
+            "$in": "{{user.data.assigned_artist_ids}}"
+          }
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "data.artist_ids": {
+            "$in": "{{user.data.assigned_artist_ids}}"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

@@ -1,0 +1,93 @@
+{
+  "name": "Payment",
+  "type": "object",
+  "properties": {
+    "campaign_id": {
+      "type": "string"
+    },
+    "editor_id": {
+      "type": "string"
+    },
+    "base_pay": {
+      "type": "number",
+      "default": 0,
+      "description": "Pago base garantizado ($10 \u00d7 clip aprobado)"
+    },
+    "clip_bonus": {
+      "type": "number",
+      "default": 0,
+      "description": "Sub-bolsa A: escalones por clip"
+    },
+    "accumulated_bonus": {
+      "type": "number",
+      "default": 0,
+      "description": "Sub-bolsa B: acumulado por editor"
+    },
+    "top_prize": {
+      "type": "number",
+      "default": 0,
+      "description": "Sub-bolsa C: premio al clip #1"
+    },
+    "total": {
+      "type": "number",
+      "default": 0
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pendiente",
+        "pagado"
+      ],
+      "default": "pendiente"
+    },
+    "paid_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "payment_reference": {
+      "type": "string",
+      "description": "Referencia de la transferencia manual"
+    },
+    "marked_by": {
+      "type": "string",
+      "description": "Admin que marc\u00f3 el pago"
+    },
+    "quincena": {
+      "type": "string",
+      "description": "Quincena a la que pertenece el pago, ej. 2026-07-Q1"
+    }
+  },
+  "required": [
+    "campaign_id",
+    "editor_id"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "$or": [
+        {
+          "data.editor_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

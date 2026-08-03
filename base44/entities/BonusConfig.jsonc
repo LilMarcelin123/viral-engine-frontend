@@ -1,0 +1,92 @@
+{
+  "name": "BonusConfig",
+  "type": "object",
+  "properties": {
+    "key": {
+      "type": "string",
+      "default": "main",
+      "description": "Singleton: siempre 'main'"
+    },
+    "price_per_video": {
+      "type": "number",
+      "default": 30,
+      "description": "$ por video para calcular num_videos"
+    },
+    "base_per_clip": {
+      "type": "number",
+      "default": 10,
+      "description": "Pago base garantizado por clip aprobado"
+    },
+    "pool_base_pct": {
+      "type": "number",
+      "default": 33.3333,
+      "description": "% del presupuesto que va al pool base"
+    },
+    "sub_a_pct": {
+      "type": "number",
+      "default": 60,
+      "description": "% de la bolsa de bonos \u2192 escalones por clip"
+    },
+    "sub_b_pct": {
+      "type": "number",
+      "default": 25,
+      "description": "% de la bolsa \u2192 acumulado por editor"
+    },
+    "sub_c_pct": {
+      "type": "number",
+      "default": 15,
+      "description": "% de la bolsa \u2192 premio clip #1"
+    },
+    "clip_tiers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "views": {
+            "type": "number"
+          },
+          "bonus": {
+            "type": "number"
+          }
+        }
+      },
+      "description": "Escalones por clip (Sub-bolsa A)"
+    },
+    "editor_tiers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "views": {
+            "type": "number"
+          },
+          "bonus": {
+            "type": "number"
+          }
+        }
+      },
+      "description": "Metas acumuladas por editor (Sub-bolsa B)"
+    }
+  },
+  "required": [
+    "key"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": null,
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

@@ -1,0 +1,47 @@
+{
+  "name": "User",
+  "type": "object",
+  "properties": {
+    "role": {
+      "type": "string",
+      "description": "The role of the user in the app",
+      "enum": [
+        "admin",
+        "user"
+      ]
+    },
+    "user_type": {
+      "type": "string",
+      "enum": [
+        "admin",
+        "cliente",
+        "editor"
+      ],
+      "default": "editor",
+      "description": "Tipo de usuario: admin (acceso total), cliente (solo lectura de sus campa\u00f1as), editor (clipper)"
+    },
+    "activo": {
+      "type": "boolean",
+      "default": true
+    },
+    "paypal_email": {
+      "type": "string",
+      "description": "Correo de PayPal del editor (lo captura el propio editor)"
+    },
+    "content_accounts": {
+      "type": "number",
+      "default": 0,
+      "description": "N\u00famero de cuentas de contenido del editor (lo captura el admin)"
+    },
+    "assigned_artist_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "IDs de los artistas asignados al cliente (solo aplica si user_type = cliente)"
+    }
+  },
+  "required": [
+    "role"
+  ]
+}

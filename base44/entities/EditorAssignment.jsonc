@@ -1,0 +1,102 @@
+{
+  "name": "EditorAssignment",
+  "type": "object",
+  "properties": {
+    "campaign_id": {
+      "type": "string"
+    },
+    "editor_id": {
+      "type": "string"
+    },
+    "cuentas": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "platform": {
+            "type": "string",
+            "enum": [
+              "tiktok",
+              "instagram",
+              "youtube"
+            ]
+          },
+          "url": {
+            "type": "string"
+          }
+        }
+      },
+      "description": "Links de las cuentas del editor para ESTA campa\u00f1a (tiktok, instagram, youtube)"
+    },
+    "cap_dinamico": {
+      "type": "number",
+      "default": 0,
+      "description": "min(25% videos campa\u00f1a, cuentas \u00d7 1.5 \u00d7 d\u00edas)"
+    },
+    "asignacion_base": {
+      "type": "number",
+      "default": 0,
+      "description": "Videos asignados en el reparto equitativo"
+    },
+    "extras": {
+      "type": "number",
+      "default": 0,
+      "description": "Videos extra de la bolsa de reasignaci\u00f3n"
+    },
+    "confirmado": {
+      "type": "boolean",
+      "default": false
+    },
+    "confirmed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "checkpoint_50": {
+      "type": "boolean",
+      "default": false
+    },
+    "strikes": {
+      "type": "number",
+      "default": 0,
+      "description": "0-3, se reinician por campa\u00f1a"
+    },
+    "removed": {
+      "type": "boolean",
+      "default": false,
+      "description": "true al llegar a 3 strikes: fuera de campa\u00f1a, conserva base, pierde bonos"
+    }
+  },
+  "required": [
+    "campaign_id",
+    "editor_id"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "$or": [
+        {
+          "data.editor_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

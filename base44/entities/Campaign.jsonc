@@ -1,0 +1,182 @@
+{
+  "name": "Campaign",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Nombre interno de la campa\u00f1a"
+    },
+    "artist_name": {
+      "type": "string",
+      "description": "Artista / canci\u00f3n"
+    },
+    "audio_url": {
+      "type": "string",
+      "description": "URL del audio oficial (TikTok u otra plataforma)"
+    },
+    "start_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "end_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "title": {
+      "type": "string",
+      "maxLength": 100,
+      "description": "T\u00edtulo p\u00fablico (m\u00e1x 100)"
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 1500,
+      "description": "Descripci\u00f3n (m\u00e1x 1500)"
+    },
+    "cover_url": {
+      "type": "string",
+      "description": "Miniatura de la campa\u00f1a"
+    },
+    "source_materials": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "link",
+              "file"
+            ]
+          },
+          "url": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          }
+        }
+      },
+      "description": "Hasta 10 links o archivos de referencia para editores"
+    },
+    "guidelines": {
+      "type": "string",
+      "description": "Pautas de contenido (texto libre) que ve el editor"
+    },
+    "target_platforms": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Plataformas objetivo: tiktok, instagram, youtube, facebook, x, etc."
+    },
+    "budget": {
+      "type": "number",
+      "default": 0,
+      "description": "Presupuesto = num_videos \u00d7 precio_por_video (MXN)"
+    },
+    "paid": {
+      "type": "number",
+      "default": 0,
+      "description": "Suma de pagos ya hechos a editores de esta campa\u00f1a"
+    },
+    "client_id": {
+      "type": "string",
+      "description": "Usuario cliente asignado (opcional). El cliente NO lee esta entidad directo: usa getClientDashboard/getCampaignReport (datos sanitizados)"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "active",
+        "closed",
+        "completed",
+        "cancelled"
+      ],
+      "default": "active"
+    },
+    "num_videos": {
+      "type": "number",
+      "default": 0,
+      "description": "N\u00famero de videos (lo captura el admin); presupuesto = num_videos \u00d7 30"
+    },
+    "pool_base": {
+      "type": "number",
+      "default": 0
+    },
+    "bonus_pool": {
+      "type": "number",
+      "default": 0
+    },
+    "sub_a": {
+      "type": "number",
+      "default": 0,
+      "description": "60% bolsa \u2014 escalones por clip"
+    },
+    "sub_b": {
+      "type": "number",
+      "default": 0,
+      "description": "25% bolsa \u2014 acumulado por editor"
+    },
+    "sub_c": {
+      "type": "number",
+      "default": 0,
+      "description": "15% bolsa \u2014 premio clip #1"
+    },
+    "total_views": {
+      "type": "number",
+      "default": 0
+    },
+    "approved_clips_count": {
+      "type": "number",
+      "default": 0
+    }
+  },
+  "required": [
+    "name"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "$and": [
+            {
+              "user_condition": {
+                "data.user_type": "editor"
+              }
+            },
+            {
+              "data.status": {
+                "$in": [
+                  "active",
+                  "closed",
+                  "completed",
+                  "cancelled"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

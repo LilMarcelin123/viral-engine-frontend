@@ -1,0 +1,133 @@
+{
+  "name": "Clip",
+  "type": "object",
+  "properties": {
+    "campaign_id": {
+      "type": "string"
+    },
+    "editor_id": {
+      "type": "string"
+    },
+    "title": {
+      "type": "string"
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Tags del clip"
+    },
+    "published_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "frozen_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "publicado + 14 d\u00edas"
+    },
+    "frozen": {
+      "type": "boolean",
+      "default": false,
+      "description": "Vistas congeladas, ya no cambian"
+    },
+    "qa_status": {
+      "type": "string",
+      "enum": [
+        "pendiente",
+        "en_revision",
+        "aprobado",
+        "rechazado"
+      ],
+      "default": "pendiente"
+    },
+    "rejection_reason": {
+      "type": "string"
+    },
+    "is_strike": {
+      "type": "boolean",
+      "default": false,
+      "description": "Clip tumbado por strike: se excluye del c\u00e1lculo"
+    },
+    "strike_reason": {
+      "type": "string"
+    },
+    "publications": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "platform": {
+            "type": "string"
+          },
+          "account": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          },
+          "views": {
+            "type": "number",
+            "default": 0
+          },
+          "likes": {
+            "type": "number",
+            "default": 0
+          }
+        }
+      },
+      "description": "Un clip puede estar publicado en varias cuentas/plataformas; las vistas suman"
+    },
+    "total_views": {
+      "type": "number",
+      "default": 0,
+      "description": "Suma de vistas de todas las publicaciones"
+    }
+  },
+  "required": [
+    "campaign_id",
+    "editor_id"
+  ],
+  "rls": {
+    "create": {
+      "created_by_id": "{{user.id}}"
+    },
+    "read": {
+      "$or": [
+        {
+          "data.editor_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "$and": [
+            {
+              "data.editor_id": "{{user.id}}"
+            },
+            {
+              "data.qa_status": "rechazado"
+            }
+          ]
+        }
+      ]
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

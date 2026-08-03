@@ -1,0 +1,41 @@
+import {
+  LayoutDashboard, Megaphone, Target, Wallet, Users, Mic2, BarChart2, Trophy,
+  TrendingUp, Library, BookOpen, FileText, History, UserCog, Settings, LifeBuoy,
+  Sparkles, Video, BrainCircuit,
+} from "lucide-react";
+
+// roles: quiénes ven cada item. Si no se define, lo ven todos.
+export const NAV_SECTIONS = [
+  {
+    title: null,
+    items: [
+      { path: "/", icon: LayoutDashboard, label: "Dashboard" },
+      { path: "/campaigns", icon: Megaphone, label: "Campañas", roles: ["admin"] },
+      { path: "/wallet", icon: Wallet, label: "Billetera", roles: ["admin", "editor"] },
+    ],
+  },
+  {
+    title: "Análisis",
+    items: [
+      { path: "/editors", icon: Users, label: "Editores", roles: ["admin"] },
+                                  ],
+  },
+  {
+    title: "Gestión",
+    items: [
+      { path: "/campaign-report", icon: FileText, label: "Reportes", roles: ["admin", "cliente"] },
+      { path: "/activity-log", icon: History, label: "Actividad", roles: ["admin"] },
+      { path: "/users", icon: UserCog, label: "Usuarios", roles: ["admin"] },
+    ],
+  },
+  {
+    title: "Cuenta",
+    items: [
+      { path: "/settings", icon: Settings, label: "Configuración", roles: ["admin"] },
+      { path: "/support", icon: LifeBuoy, label: "Soporte", roles: ["admin"] },
+    ],
+  },
+];
+
+export const DEV_NAV = [
+      ];

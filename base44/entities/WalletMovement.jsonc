@@ -1,0 +1,60 @@
+{
+  "name": "WalletMovement",
+  "type": "object",
+  "properties": {
+    "tipo": {
+      "type": "string",
+      "enum": [
+        "deposito",
+        "apartado_garantia",
+        "liberacion_garantia",
+        "pago_editor"
+      ]
+    },
+    "monto": {
+      "type": "number"
+    },
+    "campaign_id": {
+      "type": "string"
+    },
+    "campaign_name": {
+      "type": "string"
+    },
+    "editor_id": {
+      "type": "string"
+    },
+    "nota": {
+      "type": "string"
+    },
+    "hecho_por": {
+      "type": "string",
+      "description": "Nombre del admin que hizo el movimiento"
+    }
+  },
+  "required": [
+    "tipo",
+    "monto"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

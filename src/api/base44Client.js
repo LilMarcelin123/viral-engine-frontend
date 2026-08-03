@@ -1,0 +1,359 @@
+/**
+ * PUENTE (shim) v2 — reemplaza al SDK de base44.
+ *
+ * Reglas de traducción descubiertas al migrar:
+ *   1) functions.invoke() devuelve { data: ... }  (forma del SDK)
+ *   2) los códigos de catálogo van en minúsculas  (DEPOSITO -> deposito)
+ *   3) la fecha se llama created_date, no created_at
+ */
+
+const API = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+
+// ---------- sesión ----------
+export const session = {
+  get token()  { return localStorage.getItem('ve_token'); },
+  get role()   { return localStorage.getItem('ve_role'); },
+  get userId() { return Number(localStorage.getItem('ve_uid')); },
+  save({ token, role, id }) {
+    localStorage.setItem('ve_token', token);
+    localStorage.setItem('ve_role', role);
+    localStorage.setItem('ve_uid', String(id));
+  },
+  clear() { ['ve_token','ve_role','ve_uid'].forEach(k => localStorage.removeItem(k)); }
+};
+
+async function req(method, path, body) {
+  const res = await fetch(API + path, {
+    method,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(session.token ? { Authorization: `Bearer ${session.token}` } : {})
+    },
+    body: body !== undefined ? JSON.stringify(body) : undefined
+  });
+  if (res.status === 401) { session.clear(); window.location.href = '/login'; return null; }
+  const text = await res.text();
+  const data = text ? JSON.parse(text) : null;
+  if (!res.ok) throw new Error(data?.message || data?.error || `Error ${res.status}`);
+  return data;
+}
+
+const get   = (p)    => req('GET', p);
+const post  = (p, b) => req('POST', p, b);
+const patch = (p, b) => req('PATCH', p, b);
+const put   = (p, b) => req('PUT', p, b);
+const del   = (p, b) => req('DELETE', p, b);
+
+const esAdmin  = () => session.role === 'ADMIN';
+const esEditor = () => session.role === 'EDITOR';
+
+// ---------- normalizadores (reglas 2 y 3) ----------
+const lower = (v) => (v || '').toString().toLowerCase();
+const fecha = (o) => ({ ...o, created_date: o.created_at ?? o.created_date ?? o.fecha_pago });
+
+const normMovement = (m) => ({ ...fecha(m), tipo: lower(m.tipo), campaign_name: m.campana ?? null });
+const normCampaign = (c) => {
+  const est = lower(c.estado);
+  return {
+    ...fecha(c),
+    id: c.campaign_id ?? c.id,
+    name: c.nombre,
+    estado: est,
+    // el front compara contra "active"/"closed"/"cancelled"
+    status: { activa: 'active', cerrada: 'closed', completada: 'completed',
+              cancelada: 'cancelled', draft: 'draft' }[est] || est,
+    budget: c.presupuesto,
+    paid: c.pagado,
+    remaining: c.restante,
+    num_videos: c.num_videos,
+    videos_count: c.num_videos,
+    total_views: c.vistas,
+    total_likes: c.likes,
+    clips_count: c.clips,
+    approved_clips_count: c.clips_aprobados,
+    editors_count: c.editores,
+    pool_base: c.pool_base,
+    sub_a: c.sub_bolsa_a,
+    sub_b: c.sub_bolsa_b,
+    sub_c: c.sub_bolsa_c,
+    sub_bolsa_a: c.sub_bolsa_a,
+    sub_bolsa_b: c.sub_bolsa_b,
+    sub_bolsa_c: c.sub_bolsa_c,
+  };
+};
+const normClip = (c) => ({
+  ...fecha(c),
+  estado_qa: lower(c.estado ?? c.estado_qa),
+  status: lower(c.estado ?? c.estado_qa),
+  vistas: c.vistas_totales,
+  likes: c.likes_totales,
+});
+const normPayment = (p) => ({
+  ...fecha(p),
+  estado: lower(p.estado),
+  status: lower(p.estado),
+  base_pay: p.pago_base,
+  clip_bonus: p.bono_escalon,
+  accumulated_bonus: p.bono_acumulado,
+  top_prize: p.premio_1,
+  amount: p.total,
+  paypal_email: p.correo_paypal,
+  editor_name: p.editor,
+  campaign_name: p.campana,
+});
+const arr = (x) => Array.isArray(x) ? x : (x ? [x] : []);
+
+const noMigrado = (entidad) => {
+  throw new Error(`La entidad "${entidad}" es del módulo de analítica de base44 y no está migrada.`);
+};
+
+// ---------- entidades ----------
+const entities = {
+  Campaign: {
+    list:   ()  => (esAdmin() ? get('/campaigns') : esEditor() ? get('/me/dashboard') : get('/client/campaigns')).then(r => arr(r).map(normCampaign)),
+    filter: (f = {}) => (esAdmin() ? get('/campaigns') : esEditor() ? get('/me/dashboard') : get('/client/campaigns'))
+              .then(r => arr(r).map(normCampaign))
+              .then(rows => f.id ? rows.filter(x => x.id == f.id) : rows),
+    get:    (id) => get(esAdmin() ? `/campaigns/${id}` : `/client/campaigns/${id}`).then(normCampaign),
+    create: (d)  => post('/campaigns', d),
+    update: (id, d) => patch(`/campaigns/${id}`, d),
+  },
+
+  Clip: {
+    list:   ()  => (esEditor() ? get('/me/clips') : get('/clips')).then(r => arr(r).map(normClip)),
+    filter: (f = {}) => (esEditor()
+              ? get(`/me/clips${f.campaign_id ? `?campaign=${f.campaign_id}` : ''}`)
+              : get('/moderation')).then(r => arr(r).map(normClip)),
+    create: (d) => post('/clips', d),
+    update: (id, d) => patch(`/clips/${id}/qa`, d),
+  },
+
+  Payment: {
+    list:   ()  => (esEditor() ? get('/me/payments') : get('/payments')).then(r => arr(r).map(normPayment)),
+    filter: (f = {}) => {
+      if (esEditor()) return get('/me/payments').then(r => arr(r).map(normPayment));
+      const q = new URLSearchParams();
+      if (f.campaign_id) q.set('campaign', f.campaign_id);
+      if (f.quincena)    q.set('quincena', f.quincena);
+      return get(`/payments${q.toString() ? '?' + q : ''}`).then(r => arr(r).map(normPayment));
+    },
+  },
+
+  EditorAssignment: {
+    list:   ()  => (esEditor() ? get('/me/dashboard') : get('/assignments')).then(arr),
+    filter: (f = {}) => (esEditor()
+              ? get('/me/dashboard')
+              : get(`/campaigns/${f.campaign_id}/assignments`)).then(arr),
+  },
+
+  EditorAccount: {
+    list:   ()  => get('/me/accounts').then(arr),
+    filter: ()  => get('/me/accounts').then(arr),
+    create: (d) => post('/me/accounts', d),
+    delete: (id)=> del(`/me/accounts/${id}`),
+  },
+
+  BonusConfig: { filter: () => get('/config').then(r => arr(r)), update: (id, d) => put('/config', d) },
+  AuditLog:    { create: (d) => post('/audit', d).catch(() => null), list: () => get('/audit').then(arr) },
+
+  // Analítica de base44 — no migrada
+  Profile: { list: () => noMigrado('Profile'), filter: () => noMigrado('Profile'),
+             create: () => noMigrado('Profile'), update: () => noMigrado('Profile'),
+             delete: () => noMigrado('Profile') },
+  Post:    { list: () => noMigrado('Post'), filter: () => noMigrado('Post'), delete: () => noMigrado('Post') },
+  Edit:    { list: () => noMigrado('Edit'), create: () => noMigrado('Edit'),
+             update: () => noMigrado('Edit'), delete: () => noMigrado('Edit') },
+};
+
+// ---------- funciones (todo envuelto en { data }) ----------
+const functions = {
+  invoke: async (name, payload = {}) => {
+    switch (name) {
+
+      case 'walletAdmin': {
+        if (payload.action === 'deposit') {
+          const w = await post('/wallet/deposits', { monto: payload.monto, nota: payload.nota });
+          return { data: { wallet: w } };
+        }
+        const [wallet, raw] = await Promise.all([get('/wallet'), get('/wallet/movements?limit=50')]);
+        return { data: { wallet, movements: arr(raw).map(normMovement) } };
+      }
+
+      case 'campaignAdmin': {
+        if (payload.action === 'create')
+          return { data: await post('/campaigns', {
+            ...payload,
+            numVideos: Number(payload.num_videos),
+            presupuesto: Number(payload.budget),
+          }) };
+        if (payload.action === 'activate') return { data: await post(`/campaigns/${payload.campaign_id}/activate`) };
+        if (payload.action === 'close')    return { data: await post(`/campaigns/${payload.campaign_id}/close`) };
+        if (payload.action === 'cancel')   return { data: await post(`/campaigns/${payload.campaign_id}/cancel`) };
+        if (payload.action === 'update')   return { data: await patch(`/campaigns/${payload.campaign_id}`, payload) };
+        const rows = await get('/campaigns');
+        return { data: { campaigns: arr(rows).map(normCampaign) } };
+      }
+
+      case 'computePayouts':
+        return { data: await post(`/campaigns/${payload.campaign_id}/compute-payouts`) };
+
+      case 'markPayment':
+        return { data: await post(`/payments/${payload.payment_id}/mark-paid`,
+                                  { referencia: payload.referencia }) };
+
+      case 'listPayments': {
+        const q = new URLSearchParams();
+        if (payload.campaign_id) q.set('campaign', payload.campaign_id);
+        if (payload.quincena)    q.set('quincena', payload.quincena);
+        const rows = await get(`/payments${q.toString() ? '?' + q : ''}`);
+        return { data: { payments: arr(rows).map(normPayment) } };
+      }
+
+      case 'qaClip': {
+        if (payload.action === 'strike')
+          return { data: await post(`/clips/${payload.clip_id}/strike`, { motivo: payload.motivo }) };
+        if (payload.action === 'remove_strike')
+          return { data: await del(`/strikes/${payload.strike_id}`, { motivo: payload.motivo }) };
+        if (payload.action === 'list' || !payload.action) {
+          const rows = await get('/moderation');
+          return { data: { clips: arr(rows).map(normClip) } };
+        }
+        return { data: await patch(`/clips/${payload.clip_id}/qa`,
+                                   { estado: (payload.estado || 'APROBADO').toUpperCase(),
+                                     motivo: payload.motivo }) };
+      }
+
+      case 'editorAssignment': {
+        if (payload.action === 'confirm')
+          return { data: await post(`/assignments/${payload.assignment_id}/confirm`) };
+        if (payload.action === 'accounts')
+          return { data: await put(`/assignments/${payload.assignment_id}/accounts`,
+                                   { accountId: payload.account_id, agregar: payload.agregar }) };
+        if (payload.action === 'claim')
+          return { data: await post(`/assignments/${payload.assignment_id}/claim`,
+                                    { cantidad: payload.cantidad }) };
+        if (payload.action === 'create')
+          return { data: await post(`/campaigns/${payload.campaign_id}/assignments`,
+                                    { userId: payload.user_id }) };
+        const rows = await get('/me/dashboard');
+        return { data: { assignments: arr(rows) } };
+      }
+
+      case 'listEditors': {
+        const rows = await get('/editors');
+        return { data: { editors: arr(rows).map(normUser) } };
+      }
+
+      case 'listUsers': {
+        const rows = await get('/users');
+        return { data: { users: arr(rows).map(normUser) } };
+      }
+
+      case 'updateUser':
+        return { data: await patch(`/users/${payload.user_id}`, payload) };
+
+      case 'getCampaignReport': {
+        const esCliente = session.role === 'CLIENTE';
+        const rep = await get(esCliente
+              ? `/client/campaigns/${payload.campaign_id}`
+              : `/campaigns/${payload.campaign_id}`);
+        const vids = await get(esCliente
+              ? `/client/campaigns/${payload.campaign_id}/videos`
+              : `/campaigns/${payload.campaign_id}/videos`).catch(() => []);
+        const vistas = Number(rep.vistas ?? 0);
+        const pagado = Number(rep.pagado ?? 0);
+        return { data: {
+          campaign: normCampaign(rep),
+          metrics: {
+            total_views: vistas,
+            total_likes: rep.likes ?? 0,
+            total_comments: 0,
+            total_shares: 0,
+            engagement_rate: 0,
+            enrolled_editors: rep.editores ?? 0,
+            pending_videos: esCliente ? null : Number(rep.clips ?? 0) - Number(rep.clips_aprobados ?? 0),
+            approved_videos: Number(rep.clips_aprobados ?? 0),
+            rejected_videos: 0,
+            total_videos: Number(rep.clips ?? 0),
+          },
+          financials: esCliente ? null : {
+            creator_budget: rep.presupuesto,
+            budget_paid: pagado,
+            budget_remaining: rep.restante,
+            cost_per_thousand_views: vistas > 0 ? Math.round(pagado / (vistas / 1000)) : 0,
+            pool_base: rep.pool_base,
+            sub_a: rep.sub_bolsa_a,
+            sub_b: rep.sub_bolsa_b,
+            sub_c: rep.sub_bolsa_c,
+          },
+          videos: arr(vids).map(v => ({
+            id: v.clip_id ?? v.id,
+            editor_id: v.editor_id,
+            editor_name: v.editor,
+            title: v.titulo,
+            views: Number(v.vistas_totales ?? 0),
+            likes: Number(v.likes_totales ?? 0),
+            tags: v.tags ? String(v.tags).split(',').map(t => t.trim()).filter(Boolean) : [],
+            status: lower(v.estado_qa ?? v.estado),
+            tiktok_url: v.link ?? null,
+          })),
+        } };
+      }
+
+      case 'getClientDashboard': {
+        const rows = await get('/client/campaigns');
+        return { data: { campaigns: arr(rows).map(normCampaign) } };
+      }
+
+      case 'ranking': {
+        const rows = await get(`/ranking/editors?metric=${payload.metric || 'vistas'}`);
+        return { data: { ranking: arr(rows) } };
+      }
+
+      case 'scrapeClips':
+        throw new Error('El scrapeo se ejecuta manualmente desde el backend, no desde la app.');
+
+      default:
+        throw new Error(`Función no mapeada: ${name}`);
+    }
+  }
+};
+
+// ---------- auth ----------
+const auth = {
+  login: async (email, password) => { const r = await post('/auth/login', { email, password }); session.save(r); return r; },
+  me: () => get('/auth/me'),
+  updateMe: (d) => put('/me/paypal', d),
+  logout: async () => { session.clear(); window.location.href = '/login'; }
+};
+
+const integrations = {
+  Core: {
+    UploadFile: async ({ file, tipo }) => {
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('tipo', tipo || (file.type?.startsWith('video') ? 'video' : 'image'));
+      const res = await fetch(API + '/files/upload', {
+        method: 'POST',
+        headers: { ...(session.token ? { Authorization: `Bearer ${session.token}` } : {}) },
+        body: fd,
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.message || 'No se pudo subir el archivo');
+      // el front espera la URL absoluta para mostrarla
+      const url = data.url.startsWith('http') ? data.url : API + data.url;
+      return { data: { file_url: url, url } };
+    }
+  }
+};
+const agents = { createConversation: async () => { throw new Error('El agente de IA era de base44 y no se migró.'); } };
+const legal = {
+  pending: () => get('/legal/pending'),
+  accept:  () => post('/legal/accept', {}),
+  doc:     (tipo) => get('/legal/' + tipo),
+};
+
+const users = { inviteUser: (d) => post('/users/invite', d) };
+
+export const base44 = { entities, functions, auth, integrations, agents, users, legal };
+export default base44;

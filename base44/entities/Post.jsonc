@@ -1,0 +1,148 @@
+{
+  "name": "Post",
+  "type": "object",
+  "properties": {
+    "profile_id": {
+      "type": "string",
+      "description": "ID del Profile"
+    },
+    "platform": {
+      "type": "string",
+      "enum": [
+        "instagram",
+        "facebook",
+        "tiktok"
+      ]
+    },
+    "post_id": {
+      "type": "string"
+    },
+    "url": {
+      "type": "string"
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "video",
+        "reel",
+        "image",
+        "carousel",
+        "story"
+      ]
+    },
+    "caption": {
+      "type": "string"
+    },
+    "thumbnail_url": {
+      "type": "string"
+    },
+    "video_url": {
+      "type": "string"
+    },
+    "views": {
+      "type": "number",
+      "default": 0
+    },
+    "likes": {
+      "type": "number",
+      "default": 0
+    },
+    "comments": {
+      "type": "number",
+      "default": 0
+    },
+    "shares": {
+      "type": "number",
+      "default": 0
+    },
+    "saves": {
+      "type": "number",
+      "default": 0
+    },
+    "engagement_rate": {
+      "type": "number"
+    },
+    "virality_score": {
+      "type": "number",
+      "description": "Score 0-100 calculado"
+    },
+    "is_top": {
+      "type": "boolean",
+      "default": false,
+      "description": "Video top (50K+ vistas): se re-scrapea con mayor frecuencia en la rutina de videos top"
+    },
+    "published_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "duration_seconds": {
+      "type": "number"
+    },
+    "hashtags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "hook_text": {
+      "type": "string",
+      "description": "Primeros 3 segundos / primera l\u00ednea"
+    },
+    "hook_type": {
+      "type": "string",
+      "enum": [
+        "question",
+        "shock",
+        "curiosity",
+        "story",
+        "how_to",
+        "list",
+        "challenge",
+        "other"
+      ]
+    },
+    "topic": {
+      "type": "string"
+    },
+    "topic_category": {
+      "type": "string"
+    },
+    "retention_formula": {
+      "type": "string"
+    },
+    "content_structure": {
+      "type": "string",
+      "description": "JSON con estructura analizada por IA"
+    },
+    "ai_analysis_done": {
+      "type": "boolean",
+      "default": false
+    }
+  },
+  "required": [
+    "profile_id",
+    "platform"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

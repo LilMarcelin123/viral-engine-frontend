@@ -1,0 +1,51 @@
+{
+  "name": "BusinessWallet",
+  "type": "object",
+  "properties": {
+    "key": {
+      "type": "string",
+      "default": "main",
+      "description": "Singleton: siempre 'main'"
+    },
+    "saldo_total": {
+      "type": "number",
+      "default": 0,
+      "description": "Dep\u00f3sitos menos pagos ya hechos a editores"
+    },
+    "monto_en_garantia": {
+      "type": "number",
+      "default": 0,
+      "description": "Comprometido en campa\u00f1as activas (presupuesto - pagado)"
+    },
+    "total_depositado": {
+      "type": "number",
+      "default": 0,
+      "description": "Suma hist\u00f3rica de dep\u00f3sitos"
+    }
+  },
+  "required": [
+    "key"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

@@ -1,0 +1,51 @@
+{
+  "name": "MissionWinner",
+  "type": "object",
+  "properties": {
+    "mission_id": {
+      "type": "string"
+    },
+    "campaign_id": {
+      "type": "string"
+    },
+    "editor_id": {
+      "type": "string"
+    },
+    "enrollment_id": {
+      "type": "string"
+    },
+    "prize_amount": {
+      "type": "number"
+    },
+    "views_at_unlock": {
+      "type": "number"
+    }
+  },
+  "required": [
+    "mission_id",
+    "campaign_id",
+    "editor_id"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}
