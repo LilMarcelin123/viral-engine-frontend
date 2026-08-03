@@ -172,7 +172,10 @@ const functions = {
 
       case 'walletAdmin': {
         if (payload.action === 'deposit') {
-          const w = await post('/wallet/deposits', { monto: payload.monto, nota: payload.nota });
+          const w = await post('/wallet/deposits', {
+            monto: Number(payload.monto ?? payload.amount),
+            nota:  payload.nota  ?? payload.note,
+          });
           return { data: { wallet: w } };
         }
         const [wallet, raw] = await Promise.all([get('/wallet'), get('/wallet/movements?limit=50')]);
@@ -199,7 +202,7 @@ const functions = {
 
       case 'markPayment':
         return { data: await post(`/payments/${payload.payment_id}/mark-paid`,
-                                  { referencia: payload.referencia }) };
+                                  { referencia: payload.referencia ?? payload.reference }) };
 
       case 'listPayments': {
         const q = new URLSearchParams();
@@ -210,17 +213,23 @@ const functions = {
       }
 
       case 'qaClip': {
+        const motivo = payload.motivo ?? payload.reason;
         if (payload.action === 'strike')
-          return { data: await post(`/clips/${payload.clip_id}/strike`, { motivo: payload.motivo }) };
+          return { data: await post(`/clips/${payload.clip_id}/strike`, { motivo }) };
         if (payload.action === 'remove_strike')
-          return { data: await del(`/strikes/${payload.strike_id}`, { motivo: payload.motivo }) };
+          return { data: await del(`/strikes/${payload.strike_id}`, { motivo }) };
         if (payload.action === 'list' || !payload.action) {
           const rows = await get('/moderation');
           return { data: { clips: arr(rows).map(normClip) } };
         }
-        return { data: await patch(`/clips/${payload.clip_id}/qa`,
-                                   { estado: (payload.estado || 'APROBADO').toUpperCase(),
-                                     motivo: payload.motivo }) };
+        // La UI manda approve/reject/review; la BD espera los códigos del catálogo.
+        const ESTADOS = { approve: 'APROBADO', reject: 'NO_APROBADO', review: 'EN_REVISION' };
+        const estado = payload.estado
+          ? String(payload.estado).toUpperCase()
+          : ESTADOS[payload.action];
+        if (!estado)
+          throw new Error(`Acción de QA desconocida: ${payload.action}`);
+        return { data: await patch(`/clips/${payload.clip_id}/qa`, { estado, motivo }) };
       }
 
       case 'editorAssignment': {
@@ -229,6 +238,16 @@ const functions = {
         if (payload.action === 'accounts')
           return { data: await put(`/assignments/${payload.assignment_id}/accounts`,
                                    { accountId: payload.account_id, agregar: payload.agregar }) };
+        if (payload.action === 'select_accounts') {
+          // La UI manda el conjunto elegido; el backend acepta una cuenta a la vez.
+          // Resolvemos los ids y marcamos add/remove sobre TODAS las cuentas del editor.
+          const todas   = await misCuentas();
+          const elegidas = new Set(arr(payload.accounts).map(keyCuenta));
+          for (const c of todas)
+            await put(`/assignments/${payload.assignment_id}/accounts`,
+                      { accountId: c.id, agregar: elegidas.has(keyCuenta(c)) });
+          return { data: { ok: true } };
+        }
         if (payload.action === 'claim')
           return { data: await post(`/assignments/${payload.assignment_id}/claim`,
                                     { cantidad: payload.cantidad }) };
@@ -250,7 +269,9 @@ const functions = {
       }
 
       case 'updateUser':
-        return { data: await patch(`/users/${payload.user_id}`, payload) };
+        // La UI anida los campos en `updates`; el backend los espera planos.
+        return { data: await patch(`/users/${payload.user_id}`,
+                                   { ...payload, ...(payload.updates || {}) }) };
 
       case 'getCampaignReport': {
         const esCliente = session.role === 'CLIENTE';
@@ -320,10 +341,53 @@ const functions = {
 };
 
 // ---------- auth ----------
+// Clave de comparación de cuentas: debe coincidir con keyOf() de EditorAccountsSection.
+const keyCuenta = (a) => `${a.platform}|${(a.url || '').trim().toLowerCase()}`;
+
+// El backend expone las cuentas en /me/accounts, no dentro de /auth/me.
+const misCuentas = async () => {
+  const filas = arr(await get('/me/accounts').catch(() => []));
+  return filas.map(a => ({
+    id: a.id,
+    platform: lower(a.plataforma),
+    url: a.url,
+    handle: a.handle,
+    activo: a.activo,
+  }));
+};
+
+// Deriva el handle a partir de la URL: .../@usuario -> usuario
+const handleDeUrl = (url) => {
+  const limpio = (url || '').split('?')[0].replace(/\/+$/, '');
+  return (limpio.split('/').pop() || '').replace(/^@/, '') || limpio;
+};
+
 const auth = {
   login: async (email, password) => { const r = await post('/auth/login', { email, password }); session.save(r); return r; },
-  me: () => get('/auth/me'),
-  updateMe: (d) => put('/me/paypal', d),
+
+  me: async () => {
+    const u = await get('/auth/me');
+    // La UI de editor espera u.editor_accounts; el backend las tiene en otro endpoint.
+    if (u.role === 'EDITOR') u.editor_accounts = (await misCuentas()).filter(a => a.activo !== false);
+    return u;
+  },
+
+  updateMe: async (d) => {
+    // Un mismo updateMe se usa para el correo de PayPal y para el alta de cuentas.
+    if (d && d.editor_accounts) {
+      const existentes = new Set((await misCuentas()).map(keyCuenta));
+      const nuevas = d.editor_accounts.filter(a => !existentes.has(keyCuenta(a)));
+      for (const a of nuevas)
+        await post('/me/accounts', {
+          plataforma: String(a.platform).toUpperCase(),
+          handle: a.handle || handleDeUrl(a.url),
+          url: a.url,
+        });
+      return { ok: true };
+    }
+    return put('/me/paypal', d);
+  },
+
   logout: async () => { session.clear(); window.location.href = '/login'; }
 };
 
