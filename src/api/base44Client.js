@@ -57,8 +57,16 @@ const normCampaign = (c) => {
   return {
     ...fecha(c),
     id: c.campaign_id ?? c.id,
-    name: c.nombre,
+    // el tablero del editor llama al nombre `campana`
+    name: c.nombre ?? c.campana,
     estado: est,
+    // listas que la vista devuelve como cadenas
+    target_platforms: c.plataformas
+      ? String(c.plataformas).split(',').map(p => p.trim().toLowerCase()).filter(Boolean)
+      : [],
+    source_materials: c.materiales
+      ? String(c.materiales).split('|').filter(Boolean).map(url => ({ url, label: url }))
+      : [],
     // datos descriptivos: la ficha los muestra con estos nombres
     artist_name: c.artista_cancion,
     audio_url: c.url_audio,
@@ -95,8 +103,14 @@ const normClip = (c) => ({
   ...fecha(c),
   estado_qa: lower(c.estado ?? c.estado_qa),
   status: lower(c.estado ?? c.estado_qa),
+  // La ficha del editor solo entiende pendiente/aprobado/rechazado
+  qa_status: ({ APROBADO: 'aprobado', NO_APROBADO: 'rechazado',
+                SUBIDO: 'pendiente', EN_REVISION: 'pendiente'
+              })[String(c.estado ?? c.estado_qa ?? '').toUpperCase()] || 'pendiente',
   vistas: c.vistas_totales,
+  total_views: Number(c.vistas_totales ?? 0),
   likes: c.likes_totales,
+  is_strike: Boolean(c.excluido_bonos),
 });
 const normPayment = (p) => ({
   ...fecha(p),
@@ -130,6 +144,28 @@ const normUser = (u) => ({
     : [],
 });
 
+// La vista del editor entrega el id como assignment_id y las cuentas como
+// "PLATAFORMA~url|PLATAFORMA~url". La ficha las espera como objetos.
+const normAssignment = (a) => ({
+  ...fecha(a),
+  id: a.assignment_id ?? a.id,
+  campaign_id: a.campaign_id,
+  editor_id: a.editor_id ?? a.user_id,
+  user_id: a.user_id ?? a.editor_id,
+  confirmado: Boolean(a.confirmado),
+  strikes: Number(a.strikes ?? 0),
+  removed: Number(a.strikes ?? 0) >= 3,
+  // /assignments (admin) ya las manda como objetos; /me/dashboard como cadena.
+  cuentas: Array.isArray(a.cuentas)
+    ? a.cuentas.map(c => ({ ...c, platform: lower(c.platform ?? c.plataforma) }))
+    : a.cuentas
+      ? String(a.cuentas).split('|').filter(Boolean).map(par => {
+          const [plataforma, url] = par.split('~');
+          return { platform: lower(plataforma), url };
+        })
+      : [],
+});
+
 const arr = (x) => Array.isArray(x) ? x : (x ? [x] : []);
 
 const noMigrado = (entidad) => {
@@ -153,7 +189,27 @@ const entities = {
     filter: (f = {}) => (esEditor()
               ? get(`/me/clips${f.campaign_id ? `?campaign=${f.campaign_id}` : ''}`)
               : get('/moderation')).then(r => arr(r).map(normClip)),
-    create: (d) => post('/clips', d),
+    // El backend crea el clip y las publicaciones por separado, y espera el id
+    // numérico de la cuenta (la UI solo conoce su URL).
+    create: async (d) => {
+      const clip = await post('/clips', {
+        campaignId: Number(d.campaign_id),
+        titulo: d.title,
+        tags: d.tags,
+      });
+      const pubs = arr(d.publications);
+      if (pubs.length) {
+        const porUrl = new Map(
+          (await misCuentas()).map(c => [(c.url || '').trim().toLowerCase(), c.id]));
+        for (const p of pubs) {
+          const accountId = porUrl.get(String(p.account || '').trim().toLowerCase());
+          if (!accountId)
+            throw new Error(`La cuenta ${p.account} no está en tu registro. Vuelve a seleccionarla.`);
+          await post(`/clips/${clip.id}/publications`, { accountId, link: p.url });
+        }
+      }
+      return clip;
+    },
     update: (id, d) => patch(`/clips/${id}/qa`, d),
   },
 
@@ -169,10 +225,10 @@ const entities = {
   },
 
   EditorAssignment: {
-    list:   ()  => (esEditor() ? get('/me/dashboard') : get('/assignments')).then(arr),
+    list:   ()  => (esEditor() ? get('/me/dashboard') : get('/assignments')).then(r => arr(r).map(normAssignment)),
     filter: (f = {}) => (esEditor()
               ? get('/me/dashboard')
-              : get(`/campaigns/${f.campaign_id}/assignments`)).then(arr),
+              : get(`/campaigns/${f.campaign_id}/assignments`)).then(r => arr(r).map(normAssignment)),
   },
 
   EditorAccount: {
