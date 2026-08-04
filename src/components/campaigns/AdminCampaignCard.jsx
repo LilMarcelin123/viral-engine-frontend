@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { base44 } from "@/api/base44Client";
-import { Eye, CheckCircle, Loader2, Calculator, Music2 } from "lucide-react";
+import { Eye, CheckCircle, Loader2, Calculator, Music2, Play, UserPlus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { confirmDialog } from "@/lib/alerts";
+import AssignEditorsModal from "./AssignEditorsModal";
 
 function fmt(n) {
   if (!n) return "0";
@@ -20,9 +21,10 @@ const STATUS_MAP = {
   draft: { label: "Borrador", color: "text-white/40" },
 };
 
-export default function AdminCampaignCard({ campaign, client, onChanged }) {
+export default function AdminCampaignCard({ campaign, client, users, onChanged }) {
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
+  const [asignando, setAsignando] = useState(false);
   const statusInfo = STATUS_MAP[campaign.status] || STATUS_MAP.active;
   const paidPct = campaign.budget ? Math.min(100, ((campaign.paid || 0) / campaign.budget) * 100) : 0;
 
@@ -32,6 +34,15 @@ export default function AdminCampaignCard({ campaign, client, onChanged }) {
     try { await fn(); onChanged(); }
     catch (e) { setError(e.response?.data?.error || e.message); }
     finally { setBusy(""); }
+  };
+
+  const activar = async () => {
+    if (!(await confirmDialog(
+      `¿Activar "${campaign.name}"? Se apartan ${money(campaign.budget)} de garantía en la billetera ` +
+      `y la campaña queda visible para los editores asignados.`,
+      { confirmLabel: "Activar campaña" }))) return;
+    run("activate", () => base44.functions.invoke("campaignAdmin",
+      { action: "activate", campaign_id: campaign.id }));
   };
 
   const close = async (action) => {
@@ -81,6 +92,18 @@ export default function AdminCampaignCard({ campaign, client, onChanged }) {
       </div>
 
       <div className="flex gap-2 flex-wrap">
+        {campaign.status === "draft" && (
+          <button onClick={activar} disabled={!!busy}
+            className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-[11px] font-semibold bg-green-500/15 text-green-400 border border-green-500/25 hover:bg-green-500/25 disabled:opacity-40">
+            {busy === "activate" ? <Loader2 className="w-3 h-3 animate-spin" /> : <Play className="w-3 h-3" />} Activar campaña
+          </button>
+        )}
+        {(campaign.status === "draft" || campaign.status === "active") && (
+          <button onClick={() => setAsignando(true)} disabled={!!busy}
+            className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-[11px] font-semibold bg-white/6 text-white/70 border border-white/12 hover:bg-white/10 disabled:opacity-40">
+            <UserPlus className="w-3 h-3" /> Asignar editores
+          </button>
+        )}
         <button onClick={() => run("compute", () => base44.functions.invoke("computePayouts", { campaign_id: campaign.id }))}
           disabled={!!busy}
           className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-[11px] font-semibold bg-[#3B6FD4]/15 text-[#5B8DEF] border border-[#3B6FD4]/25 hover:bg-[#3B6FD4]/25 disabled:opacity-40">
@@ -100,6 +123,9 @@ export default function AdminCampaignCard({ campaign, client, onChanged }) {
         )}
       </div>
       {error && <p className="text-[11px] text-red-400 mt-2">{error}</p>}
+
+      <AssignEditorsModal open={asignando} campaign={campaign} users={users}
+        onClose={() => setAsignando(false)} onDone={onChanged} />
     </div>
   );
 }

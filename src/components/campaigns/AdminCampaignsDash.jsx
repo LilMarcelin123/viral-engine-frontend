@@ -95,7 +95,7 @@ export default function AdminCampaignsDash() {
             </div>
           )}
           {campaigns.map(c => (
-            <AdminCampaignCard key={c.id} campaign={c}
+            <AdminCampaignCard key={c.id} campaign={c} users={users}
               client={users.find(u => u.id === c.client_id)} onChanged={loadAll} />
           ))}
         </div>
