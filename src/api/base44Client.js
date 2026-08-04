@@ -418,14 +418,20 @@ const auth = {
 
   me: async () => {
     const u = await get('/auth/me');
+    // La UI usa estos alias
+    u.full_name    = u.nombre;
+    u.display_name = u.nombre;
+    u.phone        = u.telefono;
+    u.paypal_email = u.correoPaypal;
+    u.user_type    = lower(u.role);
     // La UI de editor espera u.editor_accounts; el backend las tiene en otro endpoint.
     if (u.role === 'EDITOR') u.editor_accounts = (await misCuentas()).filter(a => a.activo !== false);
     return u;
   },
 
-  updateMe: async (d) => {
-    // Un mismo updateMe se usa para el correo de PayPal y para el alta de cuentas.
-    if (d && d.editor_accounts) {
+  updateMe: async (d = {}) => {
+    // Un mismo updateMe se usa para el alta de cuentas y para el perfil.
+    if (d.editor_accounts) {
       const existentes = new Set((await misCuentas()).map(keyCuenta));
       const nuevas = d.editor_accounts.filter(a => !existentes.has(keyCuenta(a)));
       for (const a of nuevas)
@@ -436,7 +442,14 @@ const auth = {
         });
       return { ok: true };
     }
-    return put('/me/paypal', d);
+    // Solo se mandan las llaves presentes: el backend no toca lo que no viene.
+    const body = {};
+    if ('display_name' in d || 'nombre'  in d) body.nombre       = d.display_name ?? d.nombre;
+    if ('phone'        in d || 'telefono' in d) body.telefono    = d.phone ?? d.telefono;
+    if ('paypal_email' in d || 'correoPaypal' in d)
+      body.correoPaypal = d.paypal_email ?? d.correoPaypal;
+    if (Object.keys(body).length === 0) return { ok: true };
+    return put('/me/perfil', body);
   },
 
   logout: async () => { session.clear(); window.location.href = '/login'; }
