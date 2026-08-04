@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import { Wallet, Loader2, CheckCircle, Clock, Mail, Check } from "lucide-react";
+import { showAlert } from "@/lib/alerts";
 import BonusMissions from "./BonusMissions";
 import PaymentSystemGuide from "./PaymentSystemGuide";
 import EditorPaymentCard from "./EditorPaymentCard";
@@ -32,10 +33,15 @@ export default function EditorWallet() {
 
   const savePaypal = async () => {
     setSaving(true);
-    await base44.auth.updateMe({ paypal_email: paypal.trim() });
-    setSaving(false);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2500);
+    try {
+      await base44.auth.updateMe({ paypal_email: paypal.trim() });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
+    } catch (e) {
+      showAlert("danger", e.message || "No se pudo guardar tu correo de PayPal.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   if (loading) return <div className="flex items-center justify-center h-screen"><Loader2 className="w-8 h-8 animate-spin text-white/30" /></div>;
