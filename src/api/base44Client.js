@@ -107,10 +107,28 @@ const normClip = (c) => ({
   qa_status: ({ APROBADO: 'aprobado', NO_APROBADO: 'rechazado',
                 SUBIDO: 'pendiente', EN_REVISION: 'pendiente'
               })[String(c.estado ?? c.estado_qa ?? '').toUpperCase()] || 'pendiente',
+  title: c.titulo,
   vistas: c.vistas_totales,
   total_views: Number(c.vistas_totales ?? 0),
   likes: c.likes_totales,
   is_strike: Boolean(c.excluido_bonos),
+  frozen: Boolean(c.fecha_congelado),
+  // `motivo` guarda el texto tanto del rechazo como del strike
+  rejection_reason: c.motivo,
+  strike_reason: c.motivo,
+  // "PLATAFORMA~link~cuenta~vistas~likes" separadas por "|"
+  publications: c.publicaciones
+    ? String(c.publicaciones).split('|').filter(Boolean).map(p => {
+        const [platform, url, account, views, likes] = p.split('~');
+        return {
+          platform: lower(platform),
+          url,
+          account: account || null,
+          views: Number(views ?? 0),
+          likes: Number(likes ?? 0),
+        };
+      })
+    : [],
 });
 const normPayment = (p) => ({
   ...fecha(p),
@@ -135,9 +153,11 @@ const normUser = (u) => ({
   role: lower(u.role ?? u.user_type),
   estado: lower(u.estado),
   status: lower(u.estado),
+  display_name: u.nombre,
   paypal_email: u.correo_paypal,
   phone: u.telefono,
   accounts_count: u.cuentas,
+  content_accounts: u.cuentas,   // así lo llama el selector de editores del wizard
   strikes: u.strikes,
   campaign_ids: u.campanias_ids
     ? String(u.campanias_ids).split(',').map(Number).filter(Boolean)
