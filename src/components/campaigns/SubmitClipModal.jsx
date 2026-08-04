@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import { X, Send, Plus, Trash2, Loader2 } from "lucide-react";
+import { handleFromProfile } from "@/lib/editorAccounts";
 
 const DOMAINS = {
   tiktok: ["tiktok.com"],
@@ -10,12 +11,6 @@ const DOMAINS = {
 };
 
 const shortUrl = (url) => (url || "").replace(/^https?:\/\/(www\.)?/, "").slice(0, 40);
-
-// Extrae el @handle de la URL de una cuenta (tiktok.com/@x, youtube.com/@x, instagram.com/x)
-const handleFrom = (url) => {
-  const m = (url || "").match(/@([\w.\-]+)/) || (url || "").match(/instagram\.com\/([\w.\-]+)/i);
-  return m ? m[1].toLowerCase() : null;
-};
 
 export default function SubmitClipModal({ campaign, assignment, onClose, onSubmitted }) {
   const { user } = useAuth();
@@ -80,12 +75,15 @@ export default function SubmitClipModal({ campaign, assignment, onClose, onSubmi
       if (!domains.some(d => url.includes(d))) {
         return `El link "${shortUrl(p.url)}" no es de ${cuenta.platform}. Debe ser de tu cuenta ${shortUrl(cuenta.url)}.`;
       }
-      // En TikTok la URL del video incluye el @usuario: validar que sea de SU cuenta
+      // Solo TikTok pone el @usuario en la URL del video, así que es la única
+      // plataforma donde se puede verificar la propiedad desde el link.
+      // En Instagram y YouTube la verificación real ocurre al scrapear.
       if (cuenta.platform === "tiktok") {
-        const handle = handleFrom(cuenta.url);
-        if (handle && !url.includes(`@${handle}`)) {
-          return `El link no pertenece a tu cuenta @${handle}. Solo puedes subir clips de las cuentas que registraste.`;
-        }
+        const handle = handleFromProfile(cuenta.url);
+        if (!handle)
+          return `Tu cuenta ${shortUrl(cuenta.url)} está registrada con un link del que no se puede sacar el usuario. Vuelve a registrarla con la URL de tu perfil.`;
+        if (!url.includes(`@${handle}`))
+          return `Ese video no es de tu cuenta @${handle}. Solo puedes registrar publicaciones de las cuentas que registraste.`;
       }
     }
     return null;
