@@ -174,7 +174,9 @@ const normAssignment = (a) => ({
   user_id: a.user_id ?? a.editor_id,
   confirmado: Boolean(a.confirmado),
   strikes: Number(a.strikes ?? 0),
-  removed: Number(a.strikes ?? 0) >= 3,
+  // La base marca la remoción a nivel campaña; el conteo es el respaldo.
+  removed: Boolean(a.removido) || Number(a.strikes ?? 0) >= 3,
+  motivo_remocion: a.motivo_remocion ?? null,
   // /assignments (admin) ya las manda como objetos; /me/dashboard como cadena.
   cuentas: Array.isArray(a.cuentas)
     ? a.cuentas.map(c => ({ ...c, platform: lower(c.platform ?? c.plataforma) }))
@@ -383,6 +385,11 @@ const functions = {
                                     { userId: payload.user_id }) };
         const rows = await get('/me/dashboard');
         return { data: { assignments: arr(rows) } };
+      }
+
+      case 'listStrikes': {
+        const rows = await get(`/users/${payload.user_id}/strikes`);
+        return { data: { strikes: arr(rows).map(s => ({ ...fecha(s), activo: Boolean(s.activo) })) } };
       }
 
       case 'listEditors': {

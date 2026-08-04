@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { ChevronDown, AlertTriangle, ExternalLink } from "lucide-react";
 import EditorClipRow from "@/components/editors/EditorClipRow";
+import StrikesPanel from "@/components/editors/StrikesPanel";
 
 const PLATFORM_LABELS = { tiktok: "TikTok", instagram: "Instagram", youtube: "YouTube" };
 const money = (n) => `$${(n || 0).toLocaleString("es-MX", { maximumFractionDigits: 0 })}`;
@@ -69,13 +70,18 @@ export default function EditorCard({ editor, platform, assignments, clips, payme
       </div>
 
       {open && (
-        <div className="border-t border-border divide-y divide-border">
-          {shownClips.length === 0 ? (
-            <p className="p-4 text-[12px] text-muted-foreground">Sin clips{platform !== "all" ? ` en ${PLATFORM_LABELS[platform]}` : ""}.</p>
-          ) : shownClips.map(clip => (
-            <EditorClipRow key={clip.id} clip={clip} onChanged={onChanged} />
-          ))}
-        </div>
+        <>
+          <div className="border-t border-border px-4 md:px-5">
+            <StrikesPanel editor={editor} onChanged={onChanged} />
+          </div>
+          <div className="border-t border-border divide-y divide-border">
+            {shownClips.length === 0 ? (
+              <p className="p-4 text-[12px] text-muted-foreground">Sin clips{platform !== "all" ? ` en ${PLATFORM_LABELS[platform]}` : ""}.</p>
+            ) : shownClips.map(clip => (
+              <EditorClipRow key={clip.id} clip={clip} onChanged={onChanged} />
+            ))}
+          </div>
+        </>
       )}
     </div>
   );
