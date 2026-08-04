@@ -17,20 +17,26 @@ export default function AdminCampaignsDash() {
   const [campaigns, setCampaigns] = useState([]);
   const [pendingClips, setPendingClips] = useState([]);
   const [users, setUsers] = useState([]);
+  const [wallet, setWallet] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showWizard, setShowWizard] = useState(false);
   const [activeTab, setActiveTab] = useState("campaigns");
 
   const loadAll = async () => {
     try {
-      const [c, clips, u] = await Promise.all([
+      const [c, clips, u, w] = await Promise.all([
         base44.entities.Campaign.list("-created_date").catch(() => []),
         base44.entities.Clip.filter({ qa_status: "pendiente" }).catch(() => []),
         base44.functions.invoke("listUsers", {}).then(r => r.data?.users || []).catch(() => []),
+        // La garantía la calcula la base (descuenta lo pagado y suma lo que se
+        // debe en campañas cerradas). Sumar presupuestos aquí daba otro número.
+        base44.functions.invoke("walletAdmin", { action: "get" })
+          .then(r => r.data?.wallet || null).catch(() => null),
       ]);
       setCampaigns(c);
       setPendingClips(clips);
       setUsers(u);
+      setWallet(w);
     } finally {
       setLoading(false);
     }
@@ -39,7 +45,10 @@ export default function AdminCampaignsDash() {
 
   if (loading) return <div className="flex items-center justify-center h-screen"><Loader2 className="w-8 h-8 animate-spin text-white/30" /></div>;
 
-  const totalBudget = campaigns.filter(c => c.status === "active").reduce((a, c) => a + (c.budget || 0), 0);
+  // Si la billetera no cargó, se cae al cálculo anterior en vez de mostrar $0.
+  const enGarantia = wallet
+    ? Number(wallet.en_garantia ?? wallet.monto_en_garantia ?? 0)
+    : campaigns.filter(c => c.status === "active").reduce((a, c) => a + (c.budget || 0), 0);
   const totalViews = campaigns.reduce((a, c) => a + (c.total_views || 0), 0);
 
   return (
@@ -60,7 +69,7 @@ export default function AdminCampaignsDash() {
         {[
           { label: "Campañas activas", value: campaigns.filter(c => c.status === "active").length, icon: Play, color: "#4ade80" },
           { label: "Total vistas", value: fmt(totalViews), icon: Eye, color: "#60a5fa" },
-          { label: "En garantía activa", value: `$${fmt(totalBudget)}`, icon: DollarSign, color: "#3B6FD4" },
+          { label: "En garantía activa", value: `$${fmt(enGarantia)}`, icon: DollarSign, color: "#3B6FD4" },
           { label: "Clips en cola QA", value: pendingClips.length, icon: Clock, color: "#fb923c" },
         ].map(({ label, value, icon: Icon, color }) => (
           <div key={label} className="bg-card border border-white/6 rounded-2xl p-4">
