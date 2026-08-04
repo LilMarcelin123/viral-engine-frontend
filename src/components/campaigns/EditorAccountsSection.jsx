@@ -37,8 +37,14 @@ export default function EditorAccountsSection({ assignment, campaign, onChanged 
     const acc = { platform: newPlatform, url: newUrl.trim() };
     const next = [...registered, acc];
     setSaving(true);
-    await base44.auth.updateMe({ editor_accounts: next });
-    setSaving(false);
+    try {
+      await base44.auth.updateMe({ editor_accounts: next });
+    } catch (e) {
+      showAlert("danger", e.message || "No se pudo agregar la cuenta.");
+      return;
+    } finally {
+      setSaving(false);
+    }
     setRegistered(next);
     setSelected(prev => [...prev, keyOf(acc)]);
     setNewUrl("");

@@ -488,14 +488,22 @@ const auth = {
   updateMe: async (d = {}) => {
     // Un mismo updateMe se usa para el alta de cuentas y para el perfil.
     if (d.editor_accounts) {
-      const existentes = new Set((await misCuentas()).map(keyCuenta));
-      const nuevas = d.editor_accounts.filter(a => !existentes.has(keyCuenta(a)));
-      for (const a of nuevas)
+      // Los componentes mandan SIEMPRE el registro completo, así que la
+      // diferencia en ambos sentidos es lo que hay que aplicar.
+      const actuales = (await misCuentas()).filter(a => a.activo !== false);
+      const vigentes = new Map(actuales.map(a => [keyCuenta(a), a]));
+      const deseadas = new Set(d.editor_accounts.map(keyCuenta));
+
+      for (const a of d.editor_accounts.filter(x => !vigentes.has(keyCuenta(x))))
         await post('/me/accounts', {
           plataforma: String(a.platform).toUpperCase(),
           handle: a.handle || handleDeUrl(a.url),
           url: a.url,
         });
+
+      for (const [clave, a] of vigentes)
+        if (!deseadas.has(clave)) await del(`/me/accounts/${a.id}`);
+
       return { ok: true };
     }
     // Solo se mandan las llaves presentes: el backend no toca lo que no viene.

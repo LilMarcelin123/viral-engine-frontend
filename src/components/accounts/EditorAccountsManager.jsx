@@ -11,17 +11,26 @@ export default function EditorAccountsManager({ accounts, onAccountsChanged }) {
   const [url, setUrl] = useState("");
   const [saving, setSaving] = useState(false);
 
+  // Devuelve true si se guardó. El finally es lo que evita que el botón se
+  // quede girando cuando el backend rechaza.
   const persist = async (next) => {
     setSaving(true);
-    await base44.auth.updateMe({ editor_accounts: next });
-    setSaving(false);
-    onAccountsChanged(next);
+    try {
+      await base44.auth.updateMe({ editor_accounts: next });
+      onAccountsChanged(next);
+      return true;
+    } catch (e) {
+      showAlert("danger", e.message || "No se pudo guardar la cuenta.");
+      return false;
+    } finally {
+      setSaving(false);
+    }
   };
 
   const add = async () => {
     const err = validateNewAccount(accounts, platform, url);
     if (err) { showAlert("warning", err); return; }
-    await persist([...accounts, { platform, url: url.trim() }]);
+    if (!(await persist([...accounts, { platform, url: url.trim() }]))) return;
     setUrl("");
     showAlert("success", "Cuenta agregada a tu registro.");
   };
