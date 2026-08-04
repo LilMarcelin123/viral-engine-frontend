@@ -111,6 +111,25 @@ const normPayment = (p) => ({
   editor_name: p.editor,
   campaign_name: p.campana,
 });
+// El backend manda los códigos del catálogo en MAYÚSCULAS (ADMIN/EDITOR/CLIENTE)
+// y la UI compara contra minúsculas.
+const normUser = (u) => ({
+  ...fecha(u),
+  full_name: u.nombre,
+  name: u.nombre,
+  user_type: lower(u.user_type ?? u.role),
+  role: lower(u.role ?? u.user_type),
+  estado: lower(u.estado),
+  status: lower(u.estado),
+  paypal_email: u.correo_paypal,
+  phone: u.telefono,
+  accounts_count: u.cuentas,
+  strikes: u.strikes,
+  campaign_ids: u.campanias_ids
+    ? String(u.campanias_ids).split(',').map(Number).filter(Boolean)
+    : [],
+});
+
 const arr = (x) => Array.isArray(x) ? x : (x ? [x] : []);
 
 const noMigrado = (entidad) => {
